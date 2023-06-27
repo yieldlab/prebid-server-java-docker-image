@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "matchPackagePatterns": [ "*" ]
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "^latest-release-version$"
+      ],
+      "matchStrings": [
+        "^(?<currentValue>.+)\n"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "prebid/prebid-server-java"
+    }
+  ]
+}
