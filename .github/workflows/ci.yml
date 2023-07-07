@@ -63,16 +63,6 @@ jobs:
         jq --version
         ./mvnw --batch-mode --version
 
-    - name: Prepare release
-      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
-      run: |
-        git config user.name CI
-        git config user.email "<>"
-        git commit --message='Release version ${{ env.TARGET_TAG }}'
-        git tag -a --message='Release version ${{ env.TARGET_TAG }}' '${{ env.TARGET_TAG }}'
-        git checkout '${{ env.TARGET_TAG }}'
-        git show
-
     - name: Build application
       run: ./mvnw --batch-mode clean package
 
@@ -91,6 +81,22 @@ jobs:
 #        push: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
         push: true
         tags: ${{ env.OCI_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.TARGET_TAG }}
+
+    - name: Prepare release checkout repo
+      if: ${{ (github.ref == 'refs/heads/main') }}
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: '0'
+
+    - name: Prepare release add git tag
+      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
+      run: |
+        git status
+        git config user.name CI
+        git config user.email "<>"
+        git tag -a --message='Release version ${{ env.TARGET_TAG }}' '${{ env.TARGET_TAG }}'
+        git checkout '${{ env.TARGET_TAG }}'
+        git show
 
     - name: Push release tag
       if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
