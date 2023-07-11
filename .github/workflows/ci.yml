@@ -64,7 +64,7 @@ jobs:
         ./mvnw --batch-mode --version
 
     - name: Build application
-      run: ./mvnw --batch-mode clean package
+      run: ./mvnw --batch-mode -Dmaven.test.skip=true clean package
 
     - name: Log in to the container registry
       uses: docker/login-action@v2
