@@ -3,8 +3,7 @@
   "packageRules": [
     {
       "matchPackagePatterns": [ "*" ],
-      "automerge": true,
-      "automergeSchedule": ["every weekday"]
+      "automerge": true
     }
   ],
   "regexManagers": [
