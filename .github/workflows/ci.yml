@@ -19,54 +19,53 @@ jobs:
       DOCKER_IMAGE_NAME: yieldlab/prebid-server-java
 
     steps:
-    - name: Checkout version file
+    - name: Checkout repo under /my-repo
       uses: actions/checkout@v3
       with:
-        sparse-checkout: |
-          latest-release-version
-        sparse-checkout-cone-mode: false
+        fetch-depth: '0'
+        path: my-repo
 
     - name: Extract version
+      working-directory: ./my-repo
       run: |
         target_tag=$(cat latest-release-version)
         echo "TARGET_TAG=$target_tag" >> $GITHUB_ENV
 
-    - name: Check version already exist
+    - name: Check if version has already been released
+      working-directory: ./my-repo
       run: |
-        ghcr_token=$(curl https://$OCI_REGISTRY/token\?scope\="repository:$DOCKER_IMAGE_NAME:pull" | jq -r '.token')
-        status_code=$(curl --silent \
-                  -H "Authorization: Bearer $ghcr_token" \
-                  -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-                  -o /dev/null -L -w "%{response_code}" \
-                  https://$OCI_REGISTRY/v2/$DOCKER_IMAGE_NAME/manifests/$TARGET_TAG)
-        [[ "$status_code" -ne 404 ]] && tag_existing="true" || tag_existing="false"
-        echo "TAG_ALREADY_EXISTING=$tag_existing" >> $GITHUB_ENV
+        if [ $(git tag -l $TARGET_TAG) ]
+        then
+          tag_existing="true"
+          echo "Version $tag_existing already exists, further steps will be skipped."
+        else
+          tag_existing="false"
+        fi
+        
+        echo "TAG_ALREADY_EXISTS=$tag_existing" >> $GITHUB_ENV
 
-    - name: Checkout prebid-server-java
+    - name: Checkout prebid-server-java under /prebid
+      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
       uses: actions/checkout@v3
       with:
         repository: 'prebid/prebid-server-java'
         ref: ${{ env.TARGET_TAG }}
+        path: prebid
 
     - name: Set up JDK 17
+      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
       uses: actions/setup-java@v3
       with:
         distribution: corretto
         java-version: 17
 
-    - name: Check environment
-      run: |
-        env | sort
-        git --version
-        docker version
-        java --version
-        jq --version
-        ./mvnw --batch-mode --version
-
     - name: Build application
+      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
+      working-directory: ./prebid
       run: ./mvnw --batch-mode -Dmaven.test.skip=true clean package
 
     - name: Log in to the container registry
+      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
       uses: docker/login-action@v2
       with:
         registry: ${{ env.OCI_REGISTRY }}
@@ -74,21 +73,17 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and push docker image
+      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
       uses: docker/build-push-action@v4
       with:
-        context: .
-        # push only when main branch and docker tag not existing
-        push: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
+        context: ./prebid
+        # push image only on main branch
+        push: ${{ (github.ref == 'refs/heads/main') }}
         tags: ${{ env.OCI_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.TARGET_TAG }}
 
-    - name: Prepare release checkout repo
-      if: ${{ (github.ref == 'refs/heads/main') }}
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: '0'
-
     - name: Add and push git tag
-      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
+      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTS == 'false') }}
+      working-directory: ./my-repo
       run: |
         git status
         git config user.name CI
@@ -99,7 +94,7 @@ jobs:
         git push origin tag -- '${{ env.TARGET_TAG }}'
 
     - name: Create GitHub release
-      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTING == 'false') }}
+      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTS == 'false') }}
       uses: release-drafter/release-drafter@v5
       with:
         config-name: release-drafter.yml
