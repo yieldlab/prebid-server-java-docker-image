@@ -37,7 +37,7 @@ jobs:
         if [ $(git tag -l $TARGET_TAG) ]
         then
           tag_existing="true"
-          echo "Version $tag_existing already exists, further steps will be skipped."
+          echo "Version $TARGET_TAG already exists, further steps will be skipped."
         else
           tag_existing="false"
         fi
