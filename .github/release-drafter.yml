@@ -1,0 +1,11 @@
+change-template: '- $TITLE (#$NUMBER)'
+no-changes-template: '- No changes'
+template: |
+  ## What’s Changed
+  $CHANGES
+
+  For more details see [prebid/prebid-server-java v$RESOLVED_VERSION](https://github.com/prebid/prebid-server-java/releases/tag/$RESOLVED_VERSION).
+  
+  ## Contributors
+
+  $CONTRIBUTORS
