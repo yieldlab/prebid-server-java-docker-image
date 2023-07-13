@@ -19,53 +19,42 @@ jobs:
       DOCKER_IMAGE_NAME: yieldlab/prebid-server-java
 
     steps:
-    - name: Checkout repo under /my-repo
+    - name: Checkout repo under /prebid-server-java-docker-image
       uses: actions/checkout@v3
       with:
         fetch-depth: '0'
-        path: my-repo
+        path: prebid-server-java-docker-image
 
     - name: Extract version
-      working-directory: ./my-repo
-      run: |
-        target_tag=$(cat latest-release-version)
-        echo "TARGET_TAG=$target_tag" >> $GITHUB_ENV
+      working-directory: ./prebid-server-java-docker-image
+      run: echo "TARGET_TAG=$(cat latest-release-version)" >> $GITHUB_ENV
 
     - name: Check if version has already been released
-      working-directory: ./my-repo
-      run: |
-        if [ $(git tag -l $TARGET_TAG) ]
-        then
-          tag_existing="true"
-          echo "Version $TARGET_TAG already exists, further steps will be skipped."
-        else
-          tag_existing="false"
-        fi
-        
-        echo "TAG_ALREADY_EXISTS=$tag_existing" >> $GITHUB_ENV
+      working-directory: ./prebid-server-java-docker-image
+      run: git rev-list "$TARGET_TAG" > /dev/null 2>&1 && echo "TAG_ALREADY_EXISTS=1" >> $GITHUB_ENV || exit 0
 
     - name: Checkout prebid-server-java under /prebid
-      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
+      if: '!env.TAG_ALREADY_EXISTS'
       uses: actions/checkout@v3
       with:
         repository: 'prebid/prebid-server-java'
         ref: ${{ env.TARGET_TAG }}
-        path: prebid
+        path: prebid-server-java
 
     - name: Set up JDK 17
-      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
+      if: '!env.TAG_ALREADY_EXISTS'
       uses: actions/setup-java@v3
       with:
         distribution: corretto
         java-version: 17
 
     - name: Build application
-      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
-      working-directory: ./prebid
+      if: '!env.TAG_ALREADY_EXISTS'
+      working-directory: ./prebid-server-java
       run: ./mvnw --batch-mode -Dmaven.test.skip=true clean package
 
     - name: Log in to the container registry
-      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
+      if: '!env.TAG_ALREADY_EXISTS'
       uses: docker/login-action@v2
       with:
         registry: ${{ env.OCI_REGISTRY }}
@@ -73,17 +62,17 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and push docker image
-      if: ${{ (env.TAG_ALREADY_EXISTS == 'false') }}
+      if: '!env.TAG_ALREADY_EXISTS'
       uses: docker/build-push-action@v4
       with:
-        context: ./prebid
+        context: ./prebid-server-java
         # push image only on main branch
         push: ${{ (github.ref == 'refs/heads/main') }}
         tags: ${{ env.OCI_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.TARGET_TAG }}
 
     - name: Add and push git tag
-      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTS == 'false') }}
-      working-directory: ./my-repo
+      if: github.ref == 'refs/heads/main' && !env.TAG_ALREADY_EXISTS
+      working-directory: ./prebid-server-java-docker-image
       run: |
         git status
         git config user.name CI
@@ -94,7 +83,7 @@ jobs:
         git push origin tag -- '${{ env.TARGET_TAG }}'
 
     - name: Create GitHub release
-      if: ${{ (github.ref == 'refs/heads/main') && (env.TAG_ALREADY_EXISTS == 'false') }}
+      if: github.ref == 'refs/heads/main' && !env.TAG_ALREADY_EXISTS
       uses: release-drafter/release-drafter@v5
       with:
         config-name: release-drafter.yml
