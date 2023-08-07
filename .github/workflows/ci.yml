@@ -14,6 +14,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      # push image
+      packages: write
+      # for git tag & github release
+      contents: write
+      pull-requests: read
     env:
       OCI_REGISTRY: ghcr.io
       DOCKER_IMAGE_NAME: yieldlab/prebid-server-java
