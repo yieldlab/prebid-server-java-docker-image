@@ -61,7 +61,7 @@ jobs:
 
     - name: Log in to the container registry
       if: '!env.TAG_ALREADY_EXISTS'
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: ${{ env.OCI_REGISTRY }}
         username: ${{ github.actor }}
