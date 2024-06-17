@@ -69,7 +69,7 @@ jobs:
 
     - name: Build and push docker image
       if: '!env.TAG_ALREADY_EXISTS'
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./prebid-server-java
         # push image only on main branch
